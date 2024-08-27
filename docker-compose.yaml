@@ -1,0 +1,132 @@
+version: '3.9'
+
+services:
+  # MongoDB service
+  mongo_db:
+    container_name: core_db
+    image: mongo@sha256:3b120f4dd854327f26ec51511e109be61f8f21329a53efa3646aa9212b8266d3 #7.0.14-rc0
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo_db:/data/db
+
+  # RabbitMQ service
+  rabbitmq:
+    image: rabbitmq@sha256:611107e29cce05c2acd968325d5dcbde7e2fee404970f1ead75fdb22be2821b3 #3.13.6-management-alpine
+    container_name: 'rabbitmq'
+    ports:
+      - "5672:5672"
+      - "15672:15672" # RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # Node Access Cotrol service
+  access_control:
+    image: ghcr.io/abi-deployment-thesis/access-control@sha256:db81bc06a9d846def9d5a6cc94bc3e4e35bbb14824d71480572a8f63db61f5f6 #v1.0.0
+    ports:
+      - 3001:3001
+    environment:
+      HTTP_PORT: 3001
+      MONGO_DB_URL: mongodb://core_db:27017/AccessControl?retryWrites=true&w=majority
+      BCRYPT_SALT: 10
+      JWT_SESSION_PASS: password
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    depends_on:
+      - mongo_db
+
+  # Node Model Management service
+  model_management:
+    image: ghcr.io/abi-deployment-thesis/model-management@sha256:a87059ddb39e2a5704faeac22000f97c1011155686e7c4665b6f3a9ade9974ed #v1.0.0
+    ports:
+      - 3002:3002
+    environment:
+      HTTP_PORT: 3002
+      GRPC_PORT: 50052
+      MONGO_DB_URL: mongodb://core_db:27017/ModelManagement?retryWrites=true&w=majority
+      JWT_SESSION_PASS: password
+      STORAGE_URL: /uploads
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    depends_on:
+      - mongo_db
+    volumes:
+      - ./uploads:/uploads
+
+  # Node Model Runner service
+  model_runner:
+    image: ghcr.io/abi-deployment-thesis/model-runner@sha256:f8512e4bd25a2361dbc3d84f924acc9880fbb2780212c7e2014bc0ec06ae4381 #v1.0.0
+    ports:
+      - 3003:3003
+    environment:
+      HTTP_PORT: 3003
+      GRPC_PORT: 50053
+      GRPC_MODEL_MGMT_HOST: model_management:50052
+      HTTP_MODEL_MGMT_HOST: model_management:3002
+      GRPC_STABLE: "false"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_DOCKER_ENGINE_QUEUE: docker_queue
+      MONGO_DB_URL: mongodb://core_db:27017/ModelRunner?retryWrites=true&w=majority
+      JWT_SESSION_PASS: password
+      STORAGE_URL: /uploads
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    depends_on:
+      - mongo_db
+      - rabbitmq
+      - model_management
+    volumes:
+      - ./uploads:/uploads
+
+  # Python Docker Engine service
+  docker_engine:
+    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:240fdf5a717db5287eaf2f11ef5ecea3774737c137ce27f21ea14dfd7746d984 #v1.0.0
+    environment:
+      GRPC_MODEL_RUNNER_HOST: model_runner:50053
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_QUEUE: docker_queue
+      DOCKER_HOST: tcp://host.docker.internal:2375
+      DOCKER_TAG: docker-engine
+      CONTAINER_PREFIX: run_
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    depends_on:
+      - rabbitmq
+      - model_runner
+    volumes:
+      - ./uploads:/uploads
+
+  # Node ABI Deployment Webapp service
+  abi-deployment-webapp:
+    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:4435d1d92cc5f602f037f81b411ac29dbd9aa5d3dc41ae6e4189702ebe6c080b #v1.0.0
+    ports:
+      - 8080:80
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    depends_on:
+      - access_control
+      - model_management
+      - model_runner
+
+volumes:
+  mongo_db: {}
+  rabbitmq_data:
