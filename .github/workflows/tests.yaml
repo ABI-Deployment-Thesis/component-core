@@ -11,13 +11,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4.1.7
 
+      - name: Get latest Docker Compose version
+        id: get-compose-version
+        run: |
+          COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+          echo "COMPOSE_VERSION=${COMPOSE_VERSION}" >> $GITHUB_ENV
+
       - name: Install Docker Compose
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
+          curl -L "https://github.com/docker/compose/releases/download/${{ env.COMPOSE_VERSION }}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
 
       - name: Verify Docker Compose installation
         run: docker-compose --version
 
-      - name: Run Development Docker Compose
+      - name: Run Docker Compose
         run: docker-compose up -d
+
+      - name: Run Traefik Docker Compose
+        run: docker-compose -f docker-compose.traefik.yaml up -d

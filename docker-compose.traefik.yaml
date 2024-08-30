@@ -1,11 +1,34 @@
 services:
+  # traefik service
+  traefik:
+    image: traefik@sha256:ec1a82940b8e00eaeef33fb4113aa1d1573b2ebb6440e10c023743fe96f08475 #v3.1.2
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+    ports:
+      - "80:80"
+      - "8081:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "128M"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik
+
   # MongoDB service
   mongo_db:
-    container_name: core_db
     image: mongo@sha256:3b120f4dd854327f26ec51511e109be61f8f21329a53efa3646aa9212b8266d3 #7.0.14-rc0
+    container_name: core_db
     restart: always
     ports:
       - 27017:27017
+    labels:
+      - "traefik.enable=false"
     deploy:
       resources:
         limits:
@@ -13,17 +36,21 @@ services:
           memory: "512M"
     volumes:
       - mongo_db:/data/db
+    networks:
+      - traefik
 
   # RabbitMQ service
   rabbitmq:
     image: rabbitmq@sha256:611107e29cce05c2acd968325d5dcbde7e2fee404970f1ead75fdb22be2821b3 #3.13.6-management-alpine
-    container_name: 'rabbitmq'
+    container_name: rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672" # RabbitMQ Management UI
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    labels:
+      - "traefik.enable=false"
     deploy:
       resources:
         limits:
@@ -36,17 +63,21 @@ services:
       retries: 10
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - traefik
 
   # Node Access Cotrol service
   access_control:
     image: ghcr.io/abi-deployment-thesis/access-control@sha256:ae3d2081f3cecf0eb9d5a5082e1b8fe1045b89946bfdad07a30e6d502c9f1ccb #v1.0.1
     ports:
-      - 3001:3001
+      - 3001
     environment:
       HTTP_PORT: 3001
       MONGO_DB_URL: mongodb://core_db:27017/AccessControl?retryWrites=true&w=majority
       BCRYPT_SALT: 10
       JWT_SESSION_PASS: password
+    labels:
+      - "traefik.http.routers.access_control.rule=Host(`access-control.localhost`)"
     deploy:
       replicas: 1
       resources:
@@ -54,19 +85,24 @@ services:
           cpus: "0.1"
           memory: "256M"
     depends_on:
+      - traefik
       - mongo_db
+    networks:
+      - traefik
 
   # Node Model Management service
   model_management:
     image: ghcr.io/abi-deployment-thesis/model-management@sha256:a87059ddb39e2a5704faeac22000f97c1011155686e7c4665b6f3a9ade9974ed #v1.0.0
     ports:
-      - 3002:3002
+      - 3002
     environment:
       HTTP_PORT: 3002
       GRPC_PORT: 50052
       MONGO_DB_URL: mongodb://core_db:27017/ModelManagement?retryWrites=true&w=majority
       JWT_SESSION_PASS: password
       STORAGE_URL: /uploads
+    labels:
+      - "traefik.http.routers.model_management.rule=Host(`model-management.localhost`)"
     deploy:
       replicas: 1
       resources:
@@ -74,15 +110,18 @@ services:
           cpus: "0.1"
           memory: "256M"
     depends_on:
+      - traefik
       - mongo_db
     volumes:
       - ./uploads:/uploads
+    networks:
+      - traefik
 
   # Node Model Runner service
   model_runner:
     image: ghcr.io/abi-deployment-thesis/model-runner@sha256:f8512e4bd25a2361dbc3d84f924acc9880fbb2780212c7e2014bc0ec06ae4381 #v1.0.0
     ports:
-      - 3003:3003
+      - 3003
     environment:
       HTTP_PORT: 3003
       GRPC_PORT: 50053
@@ -94,6 +133,8 @@ services:
       MONGO_DB_URL: mongodb://core_db:27017/ModelRunner?retryWrites=true&w=majority
       JWT_SESSION_PASS: password
       STORAGE_URL: /uploads
+    labels:
+      - "traefik.http.routers.model_runner.rule=Host(`model-runner.localhost`)"
     deploy:
       replicas: 1
       resources:
@@ -101,9 +142,12 @@ services:
           cpus: "0.1"
           memory: "256M"
     depends_on:
+      - traefik
       - mongo_db
     volumes:
       - ./uploads:/uploads
+    networks:
+      - traefik
 
   # Python Docker Engine service
   docker_engine:
@@ -115,6 +159,8 @@ services:
       DOCKER_HOST: tcp://host.docker.internal:2375
       DOCKER_TAG: docker-engine
       CONTAINER_PREFIX: run_
+    labels:
+      - "traefik.enable=false"
     deploy:
       replicas: 1
       resources:
@@ -126,17 +172,21 @@ services:
         condition: service_healthy
     volumes:
       - ./uploads:/uploads
+    networks:
+      - traefik
 
   # Node ABI Deployment Webapp service
-  # Note: This is for testing purposes only
+  # Note: This is for testing purposes only, which is why it is not included in the Traefik network
   abi-deployment-webapp:
     image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:060fe774721c944d1c5752d501a077914da5b05c201414d2896d28a287078483 #v1.0.1
     ports:
       - 8080:80
     environment:
-      MY_APP_ACCESS_CONTROL_BASE_URL: http://localhost:3001
-      MY_APP_MODEL_MANAGEMENT_BASE_URL: http://localhost:3002
-      MY_APP_MODEL_RUNNER_BASE_URL: http://localhost:3003
+      MY_APP_ACCESS_CONTROL_BASE_URL: http://access-control.localhost
+      MY_APP_MODEL_MANAGEMENT_BASE_URL: http://model-management.localhost
+      MY_APP_MODEL_RUNNER_BASE_URL: http://model-runner.localhost
+    labels:
+      - "traefik.enable=false"
     deploy:
       resources:
         limits:
@@ -150,3 +200,7 @@ services:
 volumes:
   mongo_db: {}
   rabbitmq_data:
+
+networks:
+  traefik:
+    external: false
