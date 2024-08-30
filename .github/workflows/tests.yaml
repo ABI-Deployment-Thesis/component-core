@@ -19,5 +19,8 @@ jobs:
       - name: Verify Docker Compose installation
         run: docker-compose --version
 
-      - name: Run Development Docker Compose
+      - name: Run Docker Compose
         run: docker-compose up -d
+
+      - name: Run Traefik Docker Compose
+        run: docker-compose -f docker-compose.traefik.yaml up -d
