@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # MongoDB service
   mongo_db:
@@ -8,6 +6,11 @@ services:
     restart: always
     ports:
       - 27017:27017
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "512M"
     volumes:
       - mongo_db:/data/db
 
@@ -21,12 +24,22 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: "256M"
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 30s
+      timeout: 30s
+      retries: 10
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
   # Node Access Cotrol service
   access_control:
-    image: ghcr.io/abi-deployment-thesis/access-control@sha256:db81bc06a9d846def9d5a6cc94bc3e4e35bbb14824d71480572a8f63db61f5f6 #v1.0.0
+    image: ghcr.io/abi-deployment-thesis/access-control@sha256:ae3d2081f3cecf0eb9d5a5082e1b8fe1045b89946bfdad07a30e6d502c9f1ccb #v1.0.1
     ports:
       - 3001:3001
     environment:
@@ -35,9 +48,10 @@ services:
       BCRYPT_SALT: 10
       JWT_SESSION_PASS: password
     deploy:
+      replicas: 1
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.1"
           memory: "256M"
     depends_on:
       - mongo_db
@@ -54,9 +68,10 @@ services:
       JWT_SESSION_PASS: password
       STORAGE_URL: /uploads
     deploy:
+      replicas: 1
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.1"
           memory: "256M"
     depends_on:
       - mongo_db
@@ -80,20 +95,19 @@ services:
       JWT_SESSION_PASS: password
       STORAGE_URL: /uploads
     deploy:
+      replicas: 1
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.1"
           memory: "256M"
     depends_on:
       - mongo_db
-      - rabbitmq
-      - model_management
     volumes:
       - ./uploads:/uploads
 
   # Python Docker Engine service
   docker_engine:
-    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:240fdf5a717db5287eaf2f11ef5ecea3774737c137ce27f21ea14dfd7746d984 #v1.0.0
+    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:b28253088583ff1ca86e187172a6eb0743f584ed6fe270efff48f7e43b63c517 #v1.0.1
     environment:
       GRPC_MODEL_RUNNER_HOST: model_runner:50053
       RABBITMQ_HOST: rabbitmq
@@ -102,25 +116,31 @@ services:
       DOCKER_TAG: docker-engine
       CONTAINER_PREFIX: run_
     deploy:
+      replicas: 1
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.1"
           memory: "256M"
     depends_on:
-      - rabbitmq
-      - model_runner
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./uploads:/uploads
 
   # Node ABI Deployment Webapp service
+  # Note: This is for testing purposes only
   abi-deployment-webapp:
-    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:4435d1d92cc5f602f037f81b411ac29dbd9aa5d3dc41ae6e4189702ebe6c080b #v1.0.0
+    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:060fe774721c944d1c5752d501a077914da5b05c201414d2896d28a287078483 #v1.0.1
     ports:
       - 8080:80
+    environment:
+      MY_APP_ACCESS_CONTROL_BASE_URL: http://localhost:3001
+      MY_APP_MODEL_MANAGEMENT_BASE_URL: http://localhost:3002
+      MY_APP_MODEL_RUNNER_BASE_URL: http://localhost:3003
     deploy:
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.1"
           memory: "256M"
     depends_on:
       - access_control
