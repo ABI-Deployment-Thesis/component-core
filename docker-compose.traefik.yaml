@@ -92,7 +92,7 @@ services:
 
   # Node Model Management service
   model_management:
-    image: ghcr.io/abi-deployment-thesis/model-management@sha256:a87059ddb39e2a5704faeac22000f97c1011155686e7c4665b6f3a9ade9974ed #v1.0.0
+    image: ghcr.io/abi-deployment-thesis/model-management@sha256:208523b1d5d2f4f42bf0415ca8f1fb42962d638506b03c78eb11db717d10eddf #v1.1.0
     ports:
       - 3002
     environment:
@@ -119,7 +119,7 @@ services:
 
   # Node Model Runner service
   model_runner:
-    image: ghcr.io/abi-deployment-thesis/model-runner@sha256:f8512e4bd25a2361dbc3d84f924acc9880fbb2780212c7e2014bc0ec06ae4381 #v1.0.0
+    image: ghcr.io/abi-deployment-thesis/model-runner@sha256:e18c76043939437b05ce4c8a915a0c9941f9cd3a7f1180a1be1d0c18f8750e97 #v1.1.0
     ports:
       - 3003
     environment:
@@ -151,7 +151,7 @@ services:
 
   # Python Docker Engine service
   docker_engine:
-    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:b28253088583ff1ca86e187172a6eb0743f584ed6fe270efff48f7e43b63c517 #v1.0.1
+    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:88fb9e465fa61a65a7b4b0c76eaf4b4225bb437bf427a31e6bc9abd5e255c1b7 #v1.1.0
     environment:
       GRPC_MODEL_RUNNER_HOST: model_runner:50053
       RABBITMQ_HOST: rabbitmq
@@ -177,8 +177,8 @@ services:
 
   # Node ABI Deployment Webapp service
   # Note: This is for testing purposes only, which is why it is not included in the Traefik network
-  abi-deployment-webapp:
-    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:060fe774721c944d1c5752d501a077914da5b05c201414d2896d28a287078483 #v1.0.1
+  abi_deployment_webapp:
+    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:8a359a67b8d66b5a24c25376b7bfbe375aa52286bfa329240bf345664956ea09 #v1.1.0
     ports:
       - 8080:80
     environment:
