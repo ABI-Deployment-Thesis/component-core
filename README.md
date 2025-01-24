@@ -24,6 +24,12 @@ For a detailed explanation of the proposed architecture and its deployment strat
 
 - [Install Docker Enginne](https://docs.docker.com/engine/install/)
 - [Configure remote access for Docker daemon](https://docs.docker.com/engine/daemon/remote-access/)
+    - [Ubuntu](https://stackoverflow.com/questions/63416280/how-to-expose-docker-tcp-socket-on-wsl2-wsl-installed-docker-not-docker-deskt):
+        1. Execute: `nano /etc/docker/daemon.json`
+        2. Write: `{"hosts": ["tcp://0.0.0.0:2375", "unix:///var/run/docker.sock"]}`
+    - Docker Desktop:
+        1. General Settings
+        2. Check "Expose daemon on tcp://localhost:2375 without TLS"
 
 ## Quick Start
 

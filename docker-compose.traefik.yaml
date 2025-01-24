@@ -1,7 +1,7 @@
 services:
   # traefik service
   traefik:
-    image: traefik@sha256:ec1a82940b8e00eaeef33fb4113aa1d1573b2ebb6440e10c023743fe96f08475 #v3.1.2
+    image: traefik@sha256:ec1a82940b8e00eaeef33fb4113aa1d1573b2ebb6440e10c023743fe96f08475 # v3.1.2
     container_name: traefik
     restart: always
     command:
@@ -22,7 +22,7 @@ services:
 
   # MongoDB service
   mongo_db:
-    image: mongo@sha256:3b120f4dd854327f26ec51511e109be61f8f21329a53efa3646aa9212b8266d3 #7.0.14-rc0
+    image: mongo@sha256:3b120f4dd854327f26ec51511e109be61f8f21329a53efa3646aa9212b8266d3 # 7.0.14-rc0
     container_name: core_db
     restart: always
     ports:
@@ -41,7 +41,7 @@ services:
 
   # RabbitMQ service
   rabbitmq:
-    image: rabbitmq@sha256:611107e29cce05c2acd968325d5dcbde7e2fee404970f1ead75fdb22be2821b3 #3.13.6-management-alpine
+    image: rabbitmq@sha256:611107e29cce05c2acd968325d5dcbde7e2fee404970f1ead75fdb22be2821b3 # 3.13.6-management-alpine
     container_name: rabbitmq
     ports:
       - "5672:5672"
@@ -58,9 +58,9 @@ services:
           memory: "256M"
     healthcheck:
       test: rabbitmq-diagnostics check_port_connectivity
-      interval: 30s
-      timeout: 30s
-      retries: 10
+      interval: 10s
+      timeout: 5s
+      retries: 20
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -68,10 +68,11 @@ services:
 
   # Node Access Cotrol service
   access_control:
-    image: ghcr.io/abi-deployment-thesis/access-control@sha256:ae3d2081f3cecf0eb9d5a5082e1b8fe1045b89946bfdad07a30e6d502c9f1ccb #v1.0.1
+    image: ghcr.io/abi-deployment-thesis/access-control:v1.0.2@sha256:3487bd6600c54dc0422f30c9b93bcf39423ca125d8036ae7987fc1bf73b0d8ce # v1.0.2
     ports:
       - 3001
     environment:
+      SERVICE_NAME: access-control
       HTTP_PORT: 3001
       MONGO_DB_URL: mongodb://core_db:27017/AccessControl?retryWrites=true&w=majority
       BCRYPT_SALT: 10
@@ -92,10 +93,11 @@ services:
 
   # Node Model Management service
   model_management:
-    image: ghcr.io/abi-deployment-thesis/model-management@sha256:208523b1d5d2f4f42bf0415ca8f1fb42962d638506b03c78eb11db717d10eddf #v1.1.0
+    image: ghcr.io/abi-deployment-thesis/model-management:v1.1.1@sha256:32b63b8df6053a03014f96d60b9a19ff22bee4a4067a0215cfec8145e88792bf # v1.1.1
     ports:
       - 3002
     environment:
+      SERVICE_NAME: model-management
       HTTP_PORT: 3002
       GRPC_PORT: 50052
       MONGO_DB_URL: mongodb://core_db:27017/ModelManagement?retryWrites=true&w=majority
@@ -119,17 +121,21 @@ services:
 
   # Node Model Runner service
   model_runner:
-    image: ghcr.io/abi-deployment-thesis/model-runner@sha256:e18c76043939437b05ce4c8a915a0c9941f9cd3a7f1180a1be1d0c18f8750e97 #v1.1.0
+    image: ghcr.io/abi-deployment-thesis/model-runner:v1.1.1@sha256:cf0dd2b68722c240e2e11b49537d151721f87dc96a728f92630c3106facd0e28 # v1.1.1
     ports:
       - 3003
     environment:
+      SERVICE_NAME: model-runner
       HTTP_PORT: 3003
       GRPC_PORT: 50053
       GRPC_MODEL_MGMT_HOST: model_management:50052
       HTTP_MODEL_MGMT_HOST: model_management:3002
       GRPC_STABLE: "false"
       RABBITMQ_HOST: rabbitmq
+      RABBITMQ_EXTERNAL_HOST: guest:guest@rabbitmq
       RABBITMQ_DOCKER_ENGINE_QUEUE: docker_queue
+      RABBITMQ_ML_REQUESTS_QUEUE: ml_requests
+      RABBITMQ_ML_RESPONSES_QUEUE: ml_responses
       MONGO_DB_URL: mongodb://core_db:27017/ModelRunner?retryWrites=true&w=majority
       JWT_SESSION_PASS: password
       STORAGE_URL: /uploads
@@ -142,8 +148,8 @@ services:
           cpus: "0.1"
           memory: "256M"
     depends_on:
-      - traefik
-      - mongo_db
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./uploads:/uploads
     networks:
@@ -151,7 +157,7 @@ services:
 
   # Python Docker Engine service
   docker_engine:
-    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:88fb9e465fa61a65a7b4b0c76eaf4b4225bb437bf427a31e6bc9abd5e255c1b7 #v1.1.0
+    image: ghcr.io/abi-deployment-thesis/docker-engine@sha256:88fb9e465fa61a65a7b4b0c76eaf4b4225bb437bf427a31e6bc9abd5e255c1b7 # v1.1.0
     environment:
       GRPC_MODEL_RUNNER_HOST: model_runner:50053
       RABBITMQ_HOST: rabbitmq
@@ -159,6 +165,8 @@ services:
       DOCKER_HOST: tcp://host.docker.internal:2375
       DOCKER_TAG: docker-engine
       CONTAINER_PREFIX: run_
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     labels:
       - "traefik.enable=false"
     deploy:
@@ -178,7 +186,7 @@ services:
   # Node ABI Deployment Webapp service
   # Note: This is for testing purposes only, which is why it is not included in the Traefik network
   abi_deployment_webapp:
-    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:5094fba12b48015cadbe207817ce3851cffcea85b397edcb09f4cfdd9907c624 #v1.1.1
+    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:5094fba12b48015cadbe207817ce3851cffcea85b397edcb09f4cfdd9907c624 # v1.1.1
     ports:
       - 8080:80
     environment:
