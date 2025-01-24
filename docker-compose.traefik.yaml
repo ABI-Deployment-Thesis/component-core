@@ -68,7 +68,7 @@ services:
 
   # Node Access Cotrol service
   access_control:
-    image: docker pull ghcr.io/abi-deployment-thesis/access-control:v1.0.2@sha256:3487bd6600c54dc0422f30c9b93bcf39423ca125d8036ae7987fc1bf73b0d8ce # v1.0.2
+    image: ghcr.io/abi-deployment-thesis/access-control:v1.0.2@sha256:3487bd6600c54dc0422f30c9b93bcf39423ca125d8036ae7987fc1bf73b0d8ce # v1.0.2
     ports:
       - 3001
     environment:
@@ -121,7 +121,7 @@ services:
 
   # Node Model Runner service
   model_runner:
-    image: docker pull ghcr.io/abi-deployment-thesis/model-runner:v1.1.1@sha256:cf0dd2b68722c240e2e11b49537d151721f87dc96a728f92630c3106facd0e28 # v1.1.1
+    image: ghcr.io/abi-deployment-thesis/model-runner:v1.1.1@sha256:cf0dd2b68722c240e2e11b49537d151721f87dc96a728f92630c3106facd0e28 # v1.1.1
     ports:
       - 3003
     environment:
