@@ -186,7 +186,7 @@ services:
   # Node ABI Deployment Webapp service
   # Note: This is for testing purposes only, which is why it is not included in the Traefik network
   abi_deployment_webapp:
-    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp@sha256:v1.1.2@sha256:4b512b44f4e3164f87c0aef44fc03e112380414b373d8f02b443608db6603c0b # v1.1.2
+    image: ghcr.io/abi-deployment-thesis/abi-deployment-webapp:v1.1.2@sha256:4b512b44f4e3164f87c0aef44fc03e112380414b373d8f02b443608db6603c0b # v1.1.2
     ports:
       - 8080:80
     environment:
